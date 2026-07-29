@@ -4,7 +4,9 @@
 
 ## PDF GUIDES
 
-**Axlero Python Development Internship — 2026** Built collaboratively, one component at a time. 
+**Axlero Python Development Internship — 2026**
+Built collaboratively, one component at a time. 
+
 ├─ 01_StreamForge_Execution_Plan.pdf [StreamForge_Execution_Plan.pptx](https://github.com/user-attachments/files/30516638/StreamForge_Execution_Plan.pptx) 
 ├── 02_StreamForge_Prototype_Explained.pdf [StreamForge_Architecture_.pdf](https://github.com/user-attachments/files/30516635/StreamForge_Architecture_.pdf) 
 └── 03_StreamForge_Team_Roadmap.pdf [StreamForge_Detailed_Roles_Presentation.pdf](https://github.com/user-attachments/files/30516630/StreamForge_Detailed_Roles_Presentation.pdf)
