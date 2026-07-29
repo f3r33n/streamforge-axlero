@@ -82,7 +82,7 @@ Presentations and project PDFs are stored in `docs/presentations/`.
 
 | Member | Branch |
 |---|---|
-| Faizan | `faizan` |
+| Faizan | `faizan(LEADER)` |
 | Raiba Shital Kate | `raiba-kate` |
 | Sehajdeep Soni | `sehajdeep` |
 | Mandaloju Varshitha | `varshitha` |
