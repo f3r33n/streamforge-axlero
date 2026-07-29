@@ -20,9 +20,6 @@ Instead of attempting to build a production-scale distributed system, our goal i
 
 Built collaboratively, one component at a time.
 
-````
-
-```text
 docs/
 │
 ├── 01_StreamForge_Execution_Plan.pdf
@@ -36,7 +33,7 @@ docs/
 ````
 
 PDF #1 = **How we're managing the project**
-PDF #2 = **What the hell we're actually building** 😂
+PDF #2 = **What we're actually building** 
 PDF #3 = **Who builds what, in what order, with what deliverables**
 
 ---
