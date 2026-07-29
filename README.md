@@ -2,13 +2,12 @@
 
 > A real-time fleet telemetry processing prototype developed collaboratively during the Axlero Python Development Internship 2026.
 
-## 🎯 What We're Building
+## 🎯 What is StreamForge?
 
-StreamForge simulates vehicle telemetry and processes it through a simple real-time data pipeline:
+StreamForge simulates vehicle telemetry and processes it through a simple real-time data pipeline.
 
-🚚 Vehicle Telemetry
-        ↓
-🐍 Python Producer
+```text
+🚚 Telemetry Generator
         ↓
 📨 Apache Kafka
         ↓
@@ -17,19 +16,13 @@ StreamForge simulates vehicle telemetry and processes it through a simple real-t
 🔌 FastAPI
         ↓
 🖥️ Dashboard
+```
 
-The goal is not to build a production-scale fleet platform, but a working prototype demonstrating how real-time data can be generated, transported, processed, exposed through an API, and visualized.
+The objective is to build a **working and demonstrable prototype**, developing and integrating each component incrementally.
 
-Example telemetry:
+## 🏗️ Project Structure
 
-{
-  "truck_id": "TRUCK-04",
-  "speed": 52,
-  "temperature": 27,
-  "fuel": 64,
-  "timestamp": "..."
-}
-🏗️ Project Structure
+```text
 streamforge-axlero/
 ├── producer/       # Telemetry generation
 ├── consumer/       # Kafka consumers
@@ -37,14 +30,14 @@ streamforge-axlero/
 ├── api/            # FastAPI backend
 ├── frontend/       # Dashboard
 ├── tests/          # Tests
-└── docs/           # Architecture, plans and documentation
+└── docs/           # Architecture, planning and team documentation
+```
 
 The structure may evolve as development progresses.
 
-👥 Development Workflow
+## 👥 Development Workflow
 
-Each member develops their assigned component on an individual branch.
-
+```text
 Member Branch
       ↓
    develop
@@ -52,46 +45,47 @@ Member Branch
 Integration & Testing
       ↓
      main
+```
 
-main contains the stable integrated prototype.
+- `main` — stable integrated version
+- `develop` — integration and testing
+- Member branches — individual development work
 
-develop is used for integration and testing.
+Code is tested before being merged into the stable project.
 
-Individual branches are used for component development.
+## 📚 Documentation
 
-👨‍💻 Team
-Member	Role	Branch
-Faizan	To be finalized	faizan
-Raiba Shital Kate	To be finalized	raiba-kate
-Sehajdeep Soni	To be finalized	sehajdeep
-Mandaloju Varshitha	To be finalized	varshitha
-Shiva Harsha	To be finalized	shiva-harsha
-Meghana	Awaiting confirmation	meghana
-📚 Documentation
+Detailed project information is maintained separately:
 
-Detailed project information is maintained in docs/.
+- [📘 Execution Plan](docs/01_EXECUTION_PLAN.md)
+- [📗 Architecture & Prototype](docs/02_ARCHITECTURE.md)
+- [📙 Team Roadmap](docs/03_TEAM_ROADMAP.md)
+- [🤝 Contribution Guide](CONTRIBUTING.md)
 
-01_EXECUTION_PLAN.md — schedule, milestones and execution strategy
-02_ARCHITECTURE.md — system architecture and component interactions
-03_TEAM_ROADMAP.md — roles, phases and deliverables
-GIT_WORKFLOW.md — branch, commit and pull-request workflow
+Presentations and project PDFs are stored in `docs/presentations/`.
 
-Presentation versions are available under docs/presentations/.
+## 👨‍💻 Team
 
-✅ Definition of Done
+| Member | Branch |
+|---|---|
+| Faizan | `faizan` |
+| Raiba Shital Kate | `raiba-kate` |
+| Sehajdeep Soni | `sehajdeep` |
+| Mandaloju Varshitha | `varshitha` |
+| Shiva Harsha | `shiva-harsha` |
+| Meghana | `meghana` |
 
-StreamForge succeeds when we can demonstrate:
+Technical responsibilities will be finalized according to project requirements and workload distribution.
 
-Generate Telemetry
-        ↓
-Kafka Messaging
-        ↓
-Process Data
-        ↓
-FastAPI
-        ↓
-Dashboard
-        ↓
-Working Prototype
+## ✅ Core Goal
 
-Each member should be able to demonstrate and explain their contributed component.
+```text
+Generate → Transport → Process → Expose → Display
+   ✅          ✅          ✅         ✅        ✅
+```
+
+**Build the core pipeline first. Improve it second.**
+
+## 📄 License
+
+This project is licensed under the [MIT License](LICENSE).
