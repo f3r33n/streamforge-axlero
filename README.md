@@ -13,6 +13,32 @@ The prototype follows a simple pipeline:
 
 Instead of attempting to build a production-scale distributed system, our goal is to create a **working and demonstrable prototype** where each component can be developed, tested, and integrated step by step.
 
+
+## 🚀 StreamForge Team
+
+**Axlero Python Development Internship — 2026**
+
+Built collaboratively, one component at a time.
+
+````
+
+```text
+docs/
+│
+├── 01_StreamForge_Execution_Plan.pdf
+[StreamForge_Execution_Plan.pptx](https://github.com/user-attachments/files/30516638/StreamForge_Execution_Plan.pptx)
+
+├── 02_StreamForge_Prototype_Explained.pdf
+[StreamForge_Architecture_.pdf](https://github.com/user-attachments/files/30516635/StreamForge_Architecture_.pdf)
+
+└── 03_StreamForge_Team_Roadmap.pdf
+[StreamForge_Detailed_Roles_Presentation.pdf](https://github.com/user-attachments/files/30516630/StreamForge_Detailed_Roles_Presentation.pdf)
+````
+
+PDF #1 = **How we're managing the project**
+PDF #2 = **What the hell we're actually building** 😂
+PDF #3 = **Who builds what, in what order, with what deliverables**
+
 ---
 
 ## 🧠 How StreamForge Works
@@ -260,30 +286,3 @@ Display results
 
 Each team member should also be able to explain the component they contributed to during the final project review.
 
----
-
-
-
-## 🚀 StreamForge Team
-
-**Axlero Python Development Internship — 2026**
-
-Built collaboratively, one component at a time.
-
-````
-
-```text
-docs/
-│
-├── 01_StreamForge_Execution_Plan.pdf
-├── 02_StreamForge_Prototype_Explained.pdf
-└── 03_StreamForge_Team_Roadmap.pdf
-````
-
-PDF #1 = **How we're managing the project**
-PDF #2 = **What the hell we're actually building** 😂
-PDF #3 = **Who builds what, in what order, with what deliverables**
-
-That third one is the important one we'll create **after assigning the five active people their roles**. It can become the team's actual day-to-day manual rather than burying another 4,000 words inside the README.
-
-One small correction before uploading: your actual GitHub invite screenshot shows Varshitha's account as **`mandalojuvarshitha-source`**, not `Mandalojuvarshitha`. Use the account GitHub actually resolved when documenting contributors.
