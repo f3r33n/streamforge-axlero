@@ -1,13 +1,20 @@
 import json 
 import time 
 from truck import Truck
+from config import FLEET_SIZE, SIMULATION_INTERVAL
 
 fleet = []
 
-for i in range(5):
+for i in range(FLEET_SIZE):
     fleet.append(Truck(f"TRUCK-{i+1:02d}"))
 
+def publish_telemetry(telemetry):
 
+    with open("telemetry.json", "a") as file:
+        json.dump(telemetry, file)
+        file.write("\n")
+
+    return telemetry
 
 while True:
     for truck in fleet:
@@ -18,8 +25,6 @@ while True:
 
         print(json.dumps(telemetry, indent=4))
 
-        with open("telemetry.json", "a") as file:
-            json.dump(telemetry, file)
-            file.write("\n")
+        publish_telemetry(telemetry)
 
-    time.sleep(1)
+    time.sleep(SIMULATION_INTERVAL)

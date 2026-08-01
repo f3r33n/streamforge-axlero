@@ -1,10 +1,12 @@
 import random
 from datetime import datetime
-
+import uuid
+from config import *
 
 class Truck:
 
     def __init__(self,truck_id):
+        
         self.truck_id=truck_id
         self.latitude=round(random.uniform(18.45, 18.75), 6)
         self.longitude= round(random.uniform(73.75, 74.05), 6)
@@ -16,6 +18,7 @@ class Truck:
 
     def generate_telemetry(self):
         truck={
+            "event_id":str(uuid.uuid4()),
             "truck_id": self.truck_id,
         "speed": self.speed,
         "fuel": self.fuel,
@@ -37,8 +40,8 @@ class Truck:
         if self.speed < 0:
             self.speed = 0
 
-        if self.speed > 120:
-            self.speed = 120
+        if self.speed > MAX_SPEED:
+            self.speed = MAX_SPEED
         #Changing Fuel
         if self.speed == 0:
             consumption = 0
@@ -76,7 +79,7 @@ class Truck:
         else:
             self.temperature += 0.2
 
-        self.temperature=round(max(20,min(45,self.temperature)),1)
+        self.temperature=round(max(MIN_TEMPERATURE,min(MAX_TEMPERATURE,self.temperature)),1)
 
 
 
@@ -91,13 +94,13 @@ class Truck:
 
         alerts=[]
 
-        if self.fuel<15:
+        if self.fuel<LOW_FUEL_THRESHOLD:
             alerts.append("LOW_FUEL")
 
-        if self.temperature>42:
+        if self.temperature>HIGH_TEMPERATURE_THRESHOLD:
             alerts.append("HIGH_ENGINE_TEMPERTURE")
 
-        if self.speed >100:
+        if self.speed >OVERSPEED_THRESHOLD:
             alerts.append("OVERSPEED")
 
         if not alerts:
