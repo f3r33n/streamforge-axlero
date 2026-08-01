@@ -4,21 +4,28 @@ import uuid
 from config import *
 
 class Truck:
-
+    # Initialize a truck with its default operating state
     def __init__(self,truck_id):
         
         self.truck_id=truck_id
+        # Assign driver and route information to the truck
         self.driver_id="DRIVER-"+truck_id.split("-")[1]
+
         route_number = (int(truck_id.split("-")[1]) - 1) % 3 + 1
         self.route_id = f"ROUTE-{route_number:02d}"
+
         self.latitude=round(random.uniform(18.45, 18.75), 6)
+
         self.longitude= round(random.uniform(73.75, 74.05), 6)
+
         self.speed=random.randint(35,45)
+
         self.fuel=100
+
         self.temperature=round(random.uniform(25,35),1)
 
 
-
+    # Create a telemetry snapshot of the current truck state
     def generate_telemetry(self):
         truck={
             "event_id":str(uuid.uuid4()),
@@ -36,12 +43,12 @@ class Truck:
         }  
 
         return truck
-
+    # Simulate one second of truck movement and state changes
     def update(self):
         #Changing Speed
         speed_change = random.randint(-5, 5)
         self.speed += speed_change
-
+        # Randomly adjust truck speed while keeping it within safe limits
         if self.speed < 0:
             self.speed = 0
 
@@ -94,7 +101,7 @@ class Truck:
         else:
             return "MOVING"
 
-
+    # Check for abnormal operating conditions
     def get_alert(self):
 
         alerts=[]
