@@ -8,9 +8,10 @@ fleet = []
 for i in range(FLEET_SIZE):
     fleet.append(Truck(f"TRUCK-{i+1:02d}"))
 
+
 def publish_telemetry(telemetry):
 
-    with open("telemetry.json", "a") as file:
+    with open("telemetry.jsonl", "a") as file:
         json.dump(telemetry, file)
         file.write("\n")
 

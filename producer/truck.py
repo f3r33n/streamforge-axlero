@@ -8,6 +8,9 @@ class Truck:
     def __init__(self,truck_id):
         
         self.truck_id=truck_id
+        self.driver_id="DRIVER-"+truck_id.split("-")[1]
+        route_number = (int(truck_id.split("-")[1]) - 1) % 3 + 1
+        self.route_id = f"ROUTE-{route_number:02d}"
         self.latitude=round(random.uniform(18.45, 18.75), 6)
         self.longitude= round(random.uniform(73.75, 74.05), 6)
         self.speed=random.randint(35,45)
@@ -20,6 +23,8 @@ class Truck:
         truck={
             "event_id":str(uuid.uuid4()),
             "truck_id": self.truck_id,
+            "driver_id":self.driver_id,
+            "route_id":self.route_id,
         "speed": self.speed,
         "fuel": self.fuel,
         "temperature": self.temperature,
