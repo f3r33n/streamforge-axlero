@@ -2,63 +2,57 @@
 
 ## 📖 Overview
 
-The Producer module simulates a fleet of trucks and continuously generates real-time telemetry data.
+The **Producer Module** simulates a fleet of trucks and continuously generates real-time telemetry data.
 
-Currently, telemetry is stored in a **JSONL (`telemetry.jsonl`)** file. The module is designed so that the output can later be redirected to **Apache Kafka** without changing the simulation logic.
+Each truck produces realistic telemetry including speed, fuel level, engine temperature, GPS location, driver information, route assignment, truck status, alerts, and timestamps.
+
+Currently, telemetry is generated and written to a **JSON Lines (`telemetry.jsonl`)** file. The module is designed so that the output can later be redirected to **Apache Kafka** without changing the simulation logic.
 
 ---
-## Requirements
-
-- Python 3.10+
 
 # ✨ Features
 
-* Fleet simulation using Object-Oriented Programming
-* Multiple truck simulation
-* Dynamic speed updates
-* Fuel consumption
-* Engine temperature simulation
-* GPS location simulation
-* Driver ID generation
-* Route ID generation
-* Truck status monitoring
-* Alert generation
-
-  * LOW_FUEL
-  * HIGH_ENGINE_TEMPERATURE
-  * OVERSPEED
-* Configurable parameters using `config.py`
-* JSONL telemetry output
+- Fleet simulation using Object-Oriented Programming
+- Multiple truck simulation
+- Dynamic speed updates
+- Fuel consumption simulation
+- Engine temperature simulation
+- GPS location simulation
+- Driver ID generation
+- Route ID generation
+- Truck status monitoring
+- Unique Event ID generation (UUID)
+- Alert generation
+  - LOW_FUEL
+  - HIGH_ENGINE_TEMPERATURE
+  - OVERSPEED
+- Configurable parameters using `config.py`
+- JSON Lines (`telemetry.jsonl`) output
+- Basic unit tests using `pytest`
 
 ---
 
 # 📁 Project Structure
 
 ```text
-producer/
-│── __init__.py
-│── config.py
-│── truck.py
-│── telemetry_generator.py
-│── telemetry.jsonl
+streamforge-axlero/
+│
+├── producer/
+│   ├── __init__.py
+│   ├── config.py
+│   ├── truck.py
+│   ├── telemetry_generator.py
+│   └── telemetry.jsonl
+│
+├── tests/
+│   └── test_truck.py
+│
+└── README.md
 ```
 
 ---
 
-## Installation
-
-Clone the repository:
-
-```bash
-git clone <repository-url>
-cd streamforge-axlero
-```
-
-(Optional) Create a virtual environment:
-
-```bash
-python -m venv .venv
-```
+# ▶️ Running the Producer
 
 Activate the virtual environment:
 
@@ -66,18 +60,34 @@ Activate the virtual environment:
 .venv\Scripts\activate
 ```
 
-# ▶️ Running the Producer
-
-Activate the virtual environment
-
-```bash
-.venv\Scripts\activate
-```
-
-Run the producer
+Run the Producer:
 
 ```bash
 python producer/telemetry_generator.py
+```
+
+To stop the simulation safely:
+
+```text
+Press Ctrl + C
+```
+
+The Producer exits gracefully without displaying a traceback.
+
+---
+
+# 🧪 Running Tests
+
+Run the unit tests using:
+
+```bash
+python -m pytest
+```
+
+Expected output:
+
+```text
+4 passed
 ```
 
 ---
@@ -86,7 +96,7 @@ python producer/telemetry_generator.py
 
 ```json
 {
-    "event_id":"550e8400-e29b-41d4-a716-446655440000",
+    "event_id": "550e8400-e29b-41d4-a716-446655440000",
     "truck_id": "TRUCK-01",
     "driver_id": "DRIVER-01",
     "route_id": "ROUTE-01",
@@ -96,7 +106,7 @@ python producer/telemetry_generator.py
     "latitude": 18.520430,
     "longitude": 73.856743,
     "status": "MOVING",
-    "alerts": [
+    "alert": [
         "NORMAL"
     ],
     "timestamp": "2026-08-01T15:32:40.128431"
@@ -107,36 +117,35 @@ python producer/telemetry_generator.py
 
 # ⚙️ Configuration
 
-Simulation parameters can be modified in `config.py`.
+Simulation parameters can be modified in `producer/config.py`.
 
-Examples:
+Available configuration includes:
 
-* Fleet Size
-* Simulation Interval
-* Speed Limits
-* Fuel Threshold
-* Temperature Threshold
-* Overspeed Threshold
+- Fleet Size
+- Simulation Interval
+- Minimum & Maximum Speed
+- Minimum & Maximum Temperature
+- Low Fuel Threshold
+- High Temperature Threshold
+- Overspeed Threshold
 
 ---
 
 # 🚀 Future Improvements
 
-* Apache Kafka Integration
-* Live Dashboard
-* REST API
-* Database Storage
-* Fleet Analytics
-* Route Monitoring
+- Apache Kafka Integration
+- Real-time Stream Processing
+- Live Dashboard
+- Database Storage
+- Fleet Analytics
+- Route Monitoring
 
 ---
 
-# 👨‍💻 Developer
+## 👨‍💻 Producer Module
 
-**Producer Module Developed By**
+**Primary Contributor:** Raiba Kate
 
-**Raiba Kate**
-
-Artificial Intelligence & Data Science
+B.Tech – Artificial Intelligence & Data Science
 
 Vidya Pratishthan's Kamalnayan Bajaj Institute of Engineering and Technology
