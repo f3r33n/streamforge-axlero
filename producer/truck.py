@@ -1,7 +1,14 @@
 import random
 from datetime import datetime
 import uuid
-from producer.config import *
+from producer.config import (
+    MAX_SPEED,
+    MIN_TEMPERATURE,
+    MAX_TEMPERATURE,
+    LOW_FUEL_THRESHOLD,
+    HIGH_TEMPERATURE_THRESHOLD,
+    OVERSPEED_THRESHOLD,
+)
 
 class Truck:
     # Initialize a truck with its default operating state
