@@ -45,7 +45,7 @@ class Truck:
         "latitude": self.latitude,
         "longitude": self.longitude,
         "status":self.get_status(),
-        "alert":self.get_alert(),
+        "alerts":self.get_alert(),
         "timestamp": datetime.now().isoformat()
         }  
 

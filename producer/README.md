@@ -12,23 +12,22 @@ Currently, telemetry is generated and written to a **JSON Lines (`telemetry.json
 
 # ✨ Features
 
-- Fleet simulation using Object-Oriented Programming
-- Multiple truck simulation
-- Dynamic speed updates
-- Fuel consumption simulation
-- Engine temperature simulation
-- GPS location simulation
-- Driver ID generation
-- Route ID generation
-- Truck status monitoring
-- Unique Event ID generation (UUID)
-- Alert generation
-  - LOW_FUEL
-  - HIGH_ENGINE_TEMPERATURE
-  - OVERSPEED
-- Configurable parameters using `config.py`
-- JSON Lines (`telemetry.jsonl`) output
-- Basic unit tests using `pytest`
+* Fleet simulation using Object-Oriented Programming
+* Multiple truck simulation
+* Dynamic speed updates
+* Fuel consumption
+* Engine temperature simulation
+* GPS location simulation
+* Driver ID generation
+* Route ID generation
+* Truck status monitoring
+* Alert generation
+
+  * LOW_FUEL
+  * HIGH_ENGINE_TEMPERATURE
+  * OVERSPEED
+* Configurable parameters using `config.py`
+* JSONL telemetry output
 
 ---
 
