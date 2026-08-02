@@ -19,19 +19,22 @@ def publish_telemetry(telemetry):
     return telemetry
 def main():
     # Continuously generate telemetry for every truck in the fleet
-    while True:
-        for truck in fleet:
-            # Update truck state and generate a new telemetry record
+    try:
+        while True:
+            for truck in fleet:
+                # Update truck state and generate a new telemetry record
 
-            truck.update()
+                truck.update()
 
-            telemetry = truck.generate_telemetry()
+                telemetry = truck.generate_telemetry()
 
-            print(json.dumps(telemetry, indent=4))
+                print(json.dumps(telemetry, indent=4))
 
-            publish_telemetry(telemetry)
+                publish_telemetry(telemetry)
 
-        time.sleep(SIMULATION_INTERVAL)
+            time.sleep(SIMULATION_INTERVAL)
+    except KeyboardInterrupt:
+        print("\nStopping telemetry simulation...")
 
 if __name__ == "__main__":
     main()
