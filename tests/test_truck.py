@@ -1,4 +1,4 @@
-from truck import Truck
+from producer.truck import Truck
 
 def test_truck_initialization():
     truck = Truck("TRUCK-01")

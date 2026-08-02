@@ -7,6 +7,9 @@ The Producer module simulates a fleet of trucks and continuously generates real-
 Currently, telemetry is stored in a **JSONL (`telemetry.jsonl`)** file. The module is designed so that the output can later be redirected to **Apache Kafka** without changing the simulation logic.
 
 ---
+## Requirements
+
+- Python 3.10+
 
 # ✨ Features
 
@@ -42,6 +45,27 @@ producer/
 
 ---
 
+## Installation
+
+Clone the repository:
+
+```bash
+git clone <repository-url>
+cd streamforge-axlero
+```
+
+(Optional) Create a virtual environment:
+
+```bash
+python -m venv .venv
+```
+
+Activate the virtual environment:
+
+```bash
+.venv\Scripts\activate
+```
+
 # ▶️ Running the Producer
 
 Activate the virtual environment
@@ -62,6 +86,7 @@ python producer/telemetry_generator.py
 
 ```json
 {
+    "event_id":"550e8400-e29b-41d4-a716-446655440000",
     "truck_id": "TRUCK-01",
     "driver_id": "DRIVER-01",
     "route_id": "ROUTE-01",

@@ -1,7 +1,7 @@
 import json 
 import time 
-from truck import Truck
-from config import FLEET_SIZE, SIMULATION_INTERVAL
+from producer.truck import Truck
+from producer.config import FLEET_SIZE, SIMULATION_INTERVAL
 # Create the fleet of trucks for the simulation
 fleet = []
 
@@ -11,13 +11,16 @@ for i in range(FLEET_SIZE):
 # Store generated telemetry.
 # This function can later be replaced with Kafka publishing.
 def publish_telemetry(telemetry):
-
+    """Store telemetry data in JSONL format."""
     with open("telemetry.jsonl", "a") as file:
         json.dump(telemetry, file)
         file.write("\n")
 
     return telemetry
 def main():
+
+    """Run the fleet telemetry simulation."""
+
     # Continuously generate telemetry for every truck in the fleet
     try:
         while True:

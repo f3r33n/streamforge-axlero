@@ -1,7 +1,7 @@
 import random
 from datetime import datetime
 import uuid
-from config import *
+from producer.config import *
 
 class Truck:
     # Initialize a truck with its default operating state
@@ -45,7 +45,7 @@ class Truck:
         return truck
     # Simulate one second of truck movement and state changes
     def update(self):
-        #Changing Speed
+        # Simulate speed changes for the next time step
         speed_change = random.randint(-5, 5)
         self.speed += speed_change
         # Randomly adjust truck speed while keeping it within safe limits
@@ -54,7 +54,7 @@ class Truck:
 
         if self.speed > MAX_SPEED:
             self.speed = MAX_SPEED
-        #Changing Fuel
+        # Calculate fuel consumption based on current speed
         if self.speed == 0:
             consumption = 0
         elif self.speed < 20:
@@ -80,6 +80,9 @@ class Truck:
 
         self.latitude+=random.uniform(-movement,movement)
         self.longitude+=random.uniform(-movement,movement)
+        self.latitude = round(min(18.75, max(18.45, self.latitude)), 6)
+        self.longitude = round(min(74.05, max(73.75, self.longitude)), 6)
+
 
         #Changing Temperature
         if self.speed==0:
@@ -110,7 +113,7 @@ class Truck:
             alerts.append("LOW_FUEL")
 
         if self.temperature>HIGH_TEMPERATURE_THRESHOLD:
-            alerts.append("HIGH_ENGINE_TEMPERTURE")
+            alerts.append("HIGH_ENGINE_TEMPERATURE")
 
         if self.speed >OVERSPEED_THRESHOLD:
             alerts.append("OVERSPEED")

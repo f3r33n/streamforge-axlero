@@ -1,12 +1,15 @@
 # Fleet simulation settings
 FLEET_SIZE = 5
 SIMULATION_INTERVAL = 1
+
 # Truck operating limits
 MIN_SPEED = 0
 MAX_SPEED = 120
-#Temperture Limits
+
+# Temperture Limits
 MIN_TEMPERATURE = 20
 MAX_TEMPERATURE = 45
+
 # Alert thresholds
 LOW_FUEL_THRESHOLD = 15
 HIGH_TEMPERATURE_THRESHOLD = 42
