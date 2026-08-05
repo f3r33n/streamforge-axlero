@@ -2,7 +2,7 @@
 
 > A real-time fleet telemetry processing prototype developed collaboratively during the Axlero Python Development Internship 2026.
 
-## PDF GUIDES
+## PDF GUIDES ( please go through if u dont know about the project )
 
 **Axlero Python Development Internship — 2026**
 Built collaboratively, one component at a time. 
