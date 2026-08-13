@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   Truck, AlertTriangle, Gauge, Fuel, Bell, Search, MapPin,
   LayoutDashboard, Radio, BellRing, BarChart2, X, CheckCircle,
-  Clock, TrendingUp, TrendingDown, Activity,
+  Clock, TrendingUp, TrendingDown, Activity, Map as MapIcon, Navigation,
 } from "lucide-react";
 import {
   ResponsiveContainer, LineChart, Line, XAxis, Tooltip,
@@ -27,6 +27,22 @@ const fuelData = [
   { truck: "T1", fuel: 81 }, { truck: "T2", fuel: 54 },
   { truck: "T3", fuel: 33 }, { truck: "T4", fuel: 67 },
 ];
+
+// Approximate stylized positions (not geographically precise) on a 0-500 x 0-620 canvas
+const cityCoords = {
+  "Delhi": { x: 246, y: 118 },
+  "Jaipur": { x: 205, y: 152 },
+  "Mumbai": { x: 138, y: 330 },
+  "Pune": { x: 168, y: 352 },
+  "Bangalore": { x: 228, y: 432 },
+  "Mysore": { x: 205, y: 452 },
+  "Chennai": { x: 272, y: 440 },
+  "Coimbatore": { x: 235, y: 468 },
+  "Hyderabad": { x: 252, y: 350 },
+  "Vijayawada": { x: 288, y: 382 },
+  "Kolkata": { x: 378, y: 262 },
+  "Bhubaneswar": { x: 350, y: 302 },
+};
 
 const allTrucks = [
   { id: "TRUCK-01", route: "Delhi → Jaipur", speed: 72, fuel: 81, temp: "32°C", status: "Moving", driver: "Rajesh Kumar" },
@@ -63,9 +79,24 @@ const efficiencyData = [
   { route: "HYD→VJA", efficiency: 79 },
 ];
 
+function statusColor(status) {
+  if (status === "Overspeed") return "#F87171";
+  if (status === "Low Fuel") return "#FACC15";
+  if (status === "High Temp") return "#FB923C";
+  return "#22D3EE";
+}
+
+function parseRoute(route) {
+  const [from, to] = route.split(" → ").map((s) => s.trim());
+  return { from, to, fromCoord: cityCoords[from], toCoord: cityCoords[to] };
+}
+
 export default function App() {
   const [selectedTruck, setSelectedTruck] = useState(null);
-  const [liveTrucks, setLiveTrucks] = useState(allTrucks);
+  const [hoveredTruckId, setHoveredTruckId] = useState(null);
+  const [liveTrucks, setLiveTrucks] = useState(
+    allTrucks.map((t) => ({ ...t, progress: Math.floor(Math.random() * 70) + 10 }))
+  );
   const [activeTab, setActiveTab] = useState("dashboard");
   const [alerts, setAlerts] = useState(alertsData);
 
@@ -76,6 +107,7 @@ export default function App() {
           ...truck,
           speed: Math.max(40, truck.speed + Math.floor(Math.random() * 7 - 3)),
           fuel: Math.max(10, truck.fuel - (Math.random() > 0.7 ? 1 : 0)),
+          progress: (truck.progress + Math.random() * 2.2) % 100,
         }))
       );
     }, 2000);
@@ -85,6 +117,7 @@ export default function App() {
   const navItems = [
     { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
     { id: "fleet", label: "Live Fleet", icon: Radio },
+    { id: "map", label: "Live Map", icon: MapIcon },
     { id: "alerts", label: "Alerts", icon: BellRing },
     { id: "analytics", label: "Analytics", icon: BarChart2 },
   ];
@@ -140,12 +173,14 @@ export default function App() {
             <h2 className="text-4xl font-bold">
               {activeTab === "dashboard" && "Fleet Overview"}
               {activeTab === "fleet" && "Live Fleet"}
+              {activeTab === "map" && "Live Map"}
               {activeTab === "alerts" && "Alerts Center"}
               {activeTab === "analytics" && "Analytics"}
             </h2>
             <p className="text-gray-400 mt-1 text-sm">
               {activeTab === "dashboard" && "Real-time monitoring dashboard"}
               {activeTab === "fleet" && `${liveTrucks.length} trucks tracked live`}
+              {activeTab === "map" && "Live truck positions across active routes"}
               {activeTab === "alerts" && `${alerts.filter((a) => !a.resolved).length} active alerts`}
               {activeTab === "analytics" && "Weekly performance insights"}
             </p>
@@ -330,6 +365,166 @@ export default function App() {
                   </div>
                 </motion.div>
               ))}
+            </div>
+          </motion.div>
+        )}
+
+        {/* LIVE MAP */}
+        {activeTab === "map" && (
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
+            <div className="grid grid-cols-3 gap-6">
+              <div className="col-span-2 bg-[#0F172A] border border-white/10 rounded-2xl p-6 relative">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-semibold flex items-center gap-2">
+                    <Navigation className="w-4 h-4 text-cyan-400" /> Fleet positions
+                  </h3>
+                  <span className="text-gray-400 text-xs">Updated every 2s</span>
+                </div>
+                <div className="relative w-full" style={{ aspectRatio: "500 / 620" }}>
+                  <svg viewBox="0 0 500 620" className="w-full h-full">
+                    <defs>
+                      <radialGradient id="mapGlow" cx="50%" cy="45%" r="65%">
+                        <stop offset="0%" stopColor="#0E7490" stopOpacity="0.28" />
+                        <stop offset="100%" stopColor="#0E7490" stopOpacity="0" />
+                      </radialGradient>
+                      <pattern id="gridPattern" width="28" height="28" patternUnits="userSpaceOnUse">
+                        <path d="M 28 0 L 0 0 0 28" fill="none" stroke="#1E293B" strokeWidth="1" />
+                      </pattern>
+                    </defs>
+
+                    <rect x="0" y="0" width="500" height="620" fill="url(#gridPattern)" />
+
+                    {/* Stylized India silhouette */}
+                    <path
+                      d="M 205 32
+                         C 235 26, 268 34, 282 58
+                         C 292 76, 288 96, 306 112
+                         C 330 130, 352 150, 348 178
+                         C 344 202, 366 224, 386 250
+                         C 402 272, 396 300, 372 312
+                         C 350 322, 344 344, 356 366
+                         C 366 384, 352 402, 328 400
+                         C 306 398, 298 378, 302 356
+                         C 306 332, 292 314, 270 312
+                         C 260 340, 268 372, 258 402
+                         C 250 426, 258 452, 244 476
+                         C 234 494, 238 516, 226 536
+                         C 216 552, 216 572, 200 584
+                         C 190 592, 178 588, 174 574
+                         C 168 552, 178 534, 168 514
+                         C 158 496, 164 474, 150 458
+                         C 136 442, 138 418, 122 402
+                         C 104 384, 108 358, 96 338
+                         C 84 318, 92 292, 108 278
+                         C 96 258, 104 234, 122 222
+                         C 116 200, 128 178, 150 170
+                         C 146 148, 160 128, 182 122
+                         C 178 100, 188 78, 205 66
+                         C 198 52, 200 40, 205 32 Z"
+                      fill="url(#mapGlow)"
+                      stroke="#22D3EE"
+                      strokeOpacity="0.35"
+                      strokeWidth="1.5"
+                    />
+
+                    {/* Routes */}
+                    {liveTrucks.map((truck) => {
+                      const { fromCoord, toCoord } = parseRoute(truck.route);
+                      if (!fromCoord || !toCoord) return null;
+                      return (
+                        <line
+                          key={`route-${truck.id}`}
+                          x1={fromCoord.x} y1={fromCoord.y}
+                          x2={toCoord.x} y2={toCoord.y}
+                          stroke="#22D3EE"
+                          strokeOpacity={hoveredTruckId === truck.id ? 0.55 : 0.18}
+                          strokeWidth={hoveredTruckId === truck.id ? 2 : 1.2}
+                          strokeDasharray="5 5"
+                        />
+                      );
+                    })}
+
+                    {/* City markers */}
+                    {Object.entries(cityCoords).map(([name, coord]) => (
+                      <g key={name}>
+                        <circle cx={coord.x} cy={coord.y} r="3" fill="#64748B" />
+                        <text x={coord.x + 7} y={coord.y + 3} fontSize="10" fill="#94A3B8">{name}</text>
+                      </g>
+                    ))}
+
+                    {/* Trucks */}
+                    {liveTrucks.map((truck) => {
+                      const { fromCoord, toCoord } = parseRoute(truck.route);
+                      if (!fromCoord || !toCoord) return null;
+                      const t = truck.progress / 100;
+                      const x = fromCoord.x + (toCoord.x - fromCoord.x) * t;
+                      const y = fromCoord.y + (toCoord.y - fromCoord.y) * t;
+                      const color = statusColor(truck.status);
+                      const isHovered = hoveredTruckId === truck.id;
+                      return (
+                        <g
+                          key={truck.id}
+                          transform={`translate(${x}, ${y})`}
+                          onMouseEnter={() => setHoveredTruckId(truck.id)}
+                          onMouseLeave={() => setHoveredTruckId(null)}
+                          onClick={() => setSelectedTruck(truck)}
+                          className="cursor-pointer"
+                        >
+                          <circle r={isHovered ? 12 : 9} fill={color} fillOpacity="0.2">
+                            <animate attributeName="r" values="8;14;8" dur="2s" repeatCount="indefinite" />
+                            <animate attributeName="fill-opacity" values="0.35;0;0.35" dur="2s" repeatCount="indefinite" />
+                          </circle>
+                          <circle r="5" fill={color} stroke="#07111F" strokeWidth="1.5" />
+                          {isHovered && (
+                            <g transform="translate(12, -10)">
+                              <rect x="0" y="-14" width="128" height="46" rx="8" fill="#0B1627" stroke="#22D3EE" strokeOpacity="0.4" />
+                              <text x="8" y="0" fontSize="11" fill="#22D3EE" fontWeight="600">{truck.id}</text>
+                              <text x="8" y="14" fontSize="9" fill="#94A3B8">{truck.status} · {truck.speed} km/h</text>
+                              <text x="8" y="26" fontSize="9" fill="#94A3B8">{Math.round(truck.progress)}% of route</text>
+                            </g>
+                          )}
+                        </g>
+                      );
+                    })}
+                  </svg>
+                </div>
+              </div>
+
+              <div className="bg-[#0F172A] border border-white/10 rounded-2xl p-6">
+                <h3 className="text-lg font-semibold mb-4">Trucks in transit</h3>
+                <div className="space-y-3 max-h-[540px] overflow-y-auto pr-1">
+                  {liveTrucks.map((truck) => (
+                    <div
+                      key={truck.id}
+                      onMouseEnter={() => setHoveredTruckId(truck.id)}
+                      onMouseLeave={() => setHoveredTruckId(null)}
+                      onClick={() => setSelectedTruck(truck)}
+                      className={`bg-[#111827] border rounded-xl p-4 cursor-pointer transition-all ${
+                        hoveredTruckId === truck.id ? "border-cyan-500/50" : "border-white/10"
+                      }`}
+                    >
+                      <div className="flex justify-between items-center mb-2">
+                        <p className="font-semibold text-sm">{truck.id}</p>
+                        <span
+                          className="w-2 h-2 rounded-full"
+                          style={{ backgroundColor: statusColor(truck.status) }}
+                        />
+                      </div>
+                      <p className="text-gray-400 text-xs mb-3">{truck.route}</p>
+                      <div className="w-full bg-gray-700 rounded-full h-1.5">
+                        <div
+                          className="h-1.5 rounded-full bg-cyan-400 transition-all duration-700"
+                          style={{ width: `${truck.progress}%` }}
+                        />
+                      </div>
+                      <div className="flex justify-between text-xs text-gray-500 mt-1">
+                        <span>{Math.round(truck.progress)}% complete</span>
+                        <span>{truck.speed} km/h</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
             </div>
           </motion.div>
         )}
@@ -546,10 +741,14 @@ export default function App() {
                   </div>
                   <div>
                     <div className="flex justify-between text-sm text-gray-400 mb-2">
-                      <span>Route progress</span><span>68% complete</span>
+                      <span>Route progress</span>
+                      <span>{Math.round(selectedTruck.progress ?? 68)}% complete</span>
                     </div>
                     <div className="w-full bg-gray-700 rounded-full h-2.5">
-                      <div className="bg-cyan-400 h-2.5 rounded-full w-[68%]" />
+                      <div
+                        className="bg-cyan-400 h-2.5 rounded-full transition-all duration-700"
+                        style={{ width: `${selectedTruck.progress ?? 68}%` }}
+                      />
                     </div>
                   </div>
                 </div>
