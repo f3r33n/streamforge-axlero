@@ -3,6 +3,7 @@ import time
 from kafka import KafkaProducer
 from producer.truck import Truck
 from producer.config import FLEET_SIZE, SIMULATION_INTERVAL
+from producer.kafka_producer import publish_to_kafka
 # Create the fleet of trucks for the simulation
 fleet = []
 
@@ -21,6 +22,7 @@ def publish_telemetry(telemetry):
     producer.flush()
 
     return telemetry
+
 def main():
 
     """Run the fleet telemetry simulation."""
