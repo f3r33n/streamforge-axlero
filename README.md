@@ -84,9 +84,9 @@ Presentations and project PDFs are stored in `docs/presentations/`.
 | Faizan | `faizan (LEADER)` |
 | Raiba Shital Kate | `raiba-kate` |
 | Sehajdeep Soni | `sehajdeep` |
-| Mandaloju Varshitha | `varshitha` |
-| Shiva Harsha | `shiva-harsha` |
-| Meghana | `meghana` |
+| Mandaloju Varshitha | `varshitha` (ABSENT) |
+| Shiva Harsha | `shiva-harsha` (ABSENT)|
+| Meghana | `meghana` (ABSENT)|
 
 Technical responsibilities will be finalized according to project requirements and workload distribution.
 
