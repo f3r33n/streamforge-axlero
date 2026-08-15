@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Truck, AlertTriangle, Gauge, Fuel, Bell, Search, MapPin,
@@ -9,26 +9,17 @@ import {
   ResponsiveContainer, LineChart, Line, XAxis, Tooltip,
   BarChart, Bar, AreaChart, Area, YAxis,
 } from "recharts";
+import { fetchTrucks, fetchStats, fetchAlerts, fetchHealth } from "./api/client";
+import {
+  mapTruckToUi,
+  mapAlertToUi,
+  buildDashboardStats,
+  buildFuelChartData,
+  buildRouteEfficiency,
+} from "./api/mappers";
 
-const stats = [
-  { title: "Active Trucks", value: "42", icon: Truck, color: "text-cyan-400" },
-  { title: "Critical Alerts", value: "05", icon: AlertTriangle, color: "text-red-400" },
-  { title: "Avg Speed", value: "68 km/h", icon: Gauge, color: "text-green-400" },
-  { title: "Fuel Avg", value: "74%", icon: Fuel, color: "text-yellow-400" },
-];
+const STAT_ICONS = { Truck, AlertTriangle, Gauge, Fuel };
 
-const speedData = [
-  { time: "08:00", speed: 52 }, { time: "09:00", speed: 64 },
-  { time: "10:00", speed: 58 }, { time: "11:00", speed: 72 },
-  { time: "12:00", speed: 68 }, { time: "13:00", speed: 76 },
-];
-
-const fuelData = [
-  { truck: "T1", fuel: 81 }, { truck: "T2", fuel: 54 },
-  { truck: "T3", fuel: 33 }, { truck: "T4", fuel: 67 },
-];
-
-// Approximate stylized positions (not geographically precise) on a 0-500 x 0-620 canvas
 const cityCoords = {
   "Delhi": { x: 246, y: 118 },
   "Jaipur": { x: 205, y: 152 },
@@ -44,74 +35,93 @@ const cityCoords = {
   "Bhubaneswar": { x: 350, y: 302 },
 };
 
-const allTrucks = [
-  { id: "TRUCK-01", route: "Delhi → Jaipur", speed: 72, fuel: 81, temp: "32°C", status: "Moving", driver: "Rajesh Kumar" },
-  { id: "TRUCK-07", route: "Mumbai → Pune", speed: 65, fuel: 54, temp: "35°C", status: "Moving", driver: "Anil Sharma" },
-  { id: "TRUCK-12", route: "Bangalore → Mysore", speed: 91, fuel: 33, temp: "41°C", status: "Overspeed", driver: "Suresh Patel" },
-  { id: "TRUCK-03", route: "Chennai → Coimbatore", speed: 58, fuel: 12, temp: "38°C", status: "Low Fuel", driver: "Venkat Rao" },
-  { id: "TRUCK-18", route: "Hyderabad → Vijayawada", speed: 62, fuel: 67, temp: "46°C", status: "High Temp", driver: "Ravi Naik" },
-  { id: "TRUCK-22", route: "Kolkata → Bhubaneswar", speed: 70, fuel: 78, temp: "31°C", status: "Moving", driver: "Dipak Mondal" },
-];
-
-const alertsData = [
-  { id: 1, truck: "TRUCK-12", type: "Overspeed", level: "Critical", time: "2 min ago", detail: "Speed: 91 km/h — Limit: 80 km/h", resolved: false },
-  { id: 2, truck: "TRUCK-03", type: "Low Fuel", level: "Warning", time: "8 min ago", detail: "Fuel level at 12% — refuel needed", resolved: false },
-  { id: 3, truck: "TRUCK-18", type: "High Engine Temp", level: "Critical", time: "15 min ago", detail: "Engine at 46°C — coolant check required", resolved: false },
-  { id: 4, truck: "TRUCK-09", type: "GPS Signal Lost", level: "Warning", time: "32 min ago", detail: "Last seen: NH-48 near Gurgaon", resolved: false },
-  { id: 5, truck: "TRUCK-31", type: "Harsh Braking", level: "Info", time: "1 hr ago", detail: "3 harsh braking events logged", resolved: true },
-];
-
-const weeklyData = [
-  { day: "Mon", trips: 38, incidents: 2, fuelAvg: 72 },
-  { day: "Tue", trips: 42, incidents: 1, fuelAvg: 75 },
-  { day: "Wed", trips: 35, incidents: 4, fuelAvg: 68 },
-  { day: "Thu", trips: 47, incidents: 0, fuelAvg: 80 },
-  { day: "Fri", trips: 44, incidents: 3, fuelAvg: 74 },
-  { day: "Sat", trips: 30, incidents: 1, fuelAvg: 71 },
-  { day: "Sun", trips: 22, incidents: 0, fuelAvg: 77 },
-];
-
-const efficiencyData = [
-  { route: "Delhi→Jaipur", efficiency: 88 },
-  { route: "Mumbai→Pune", efficiency: 72 },
-  { route: "BLR→Mysore", efficiency: 45 },
-  { route: "Chennai→CBE", efficiency: 61 },
-  { route: "HYD→VJA", efficiency: 79 },
-];
-
 function statusColor(status) {
   if (status === "Overspeed") return "#F87171";
   if (status === "Low Fuel") return "#FACC15";
   if (status === "High Temp") return "#FB923C";
+  if (status === "Stopped") return "#94A3B8";
   return "#22D3EE";
 }
 
-function parseRoute(route) {
-  const [from, to] = route.split(" → ").map((s) => s.trim());
-  return { from, to, fromCoord: cityCoords[from], toCoord: cityCoords[to] };
+function formatTimeLabel(date) {
+  return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
 }
 
 export default function App() {
   const [selectedTruck, setSelectedTruck] = useState(null);
   const [hoveredTruckId, setHoveredTruckId] = useState(null);
-  const [liveTrucks, setLiveTrucks] = useState(
-    allTrucks.map((t) => ({ ...t, progress: Math.floor(Math.random() * 70) + 10 }))
-  );
+  const [liveTrucks, setLiveTrucks] = useState([]);
   const [activeTab, setActiveTab] = useState("dashboard");
-  const [alerts, setAlerts] = useState(alertsData);
+  const [alerts, setAlerts] = useState([]);
+  const [dashboardStats, setDashboardStats] = useState([]);
+  const [speedHistory, setSpeedHistory] = useState([]);
+  const [fuelHistory, setFuelHistory] = useState([]);
+  const [routeEfficiency, setRouteEfficiency] = useState([]);
+  const [fleetStats, setFleetStats] = useState(null);
+  const [connectionStatus, setConnectionStatus] = useState("loading");
+  const [statusMessage, setStatusMessage] = useState("Connecting to backend…");
+  const resolvedAlertIdsRef = useRef(new Set());
 
   useEffect(() => {
-    const interval = setInterval(() => {
-      setLiveTrucks((prev) =>
-        prev.map((truck) => ({
-          ...truck,
-          speed: Math.max(40, truck.speed + Math.floor(Math.random() * 7 - 3)),
-          fuel: Math.max(10, truck.fuel - (Math.random() > 0.7 ? 1 : 0)),
-          progress: (truck.progress + Math.random() * 2.2) % 100,
-        }))
-      );
-    }, 2000);
-    return () => clearInterval(interval);
+    let mounted = true;
+
+    async function poll() {
+      try {
+        await fetchHealth();
+        const [trucksRaw, statsRaw, alertsRaw] = await Promise.all([
+          fetchTrucks(),
+          fetchStats(),
+          fetchAlerts(),
+        ]);
+
+        if (!mounted) return;
+
+        const trucks = trucksRaw.map(mapTruckToUi);
+        const alertItems = alertsRaw.map(mapAlertToUi).map((a) => ({
+          ...a,
+          resolved: resolvedAlertIdsRef.current.has(a.id),
+        }));
+
+        setLiveTrucks(trucks);
+        setFleetStats(statsRaw);
+        setDashboardStats(buildDashboardStats(statsRaw, alertItems));
+        setAlerts(alertItems);
+        setRouteEfficiency(buildRouteEfficiency(trucks));
+
+        const now = new Date();
+        if (statsRaw.total_trucks > 0) {
+          setSpeedHistory((prev) => {
+            const next = [...prev, { time: formatTimeLabel(now), speed: Math.round(statsRaw.avg_speed) }];
+            return next.slice(-12);
+          });
+          setFuelHistory((prev) => {
+            const next = [...prev, { time: formatTimeLabel(now), fuelAvg: Math.round(statsRaw.avg_fuel) }];
+            return next.slice(-12);
+          });
+          setConnectionStatus("live");
+          setStatusMessage(`${statsRaw.total_trucks} trucks tracked live`);
+        } else {
+          setConnectionStatus("waiting");
+          setStatusMessage("Waiting for telemetry");
+        }
+
+        setSelectedTruck((prev) => {
+          if (!prev) return null;
+          return trucks.find((t) => t.id === prev.id) ?? null;
+        });
+      } catch {
+        if (!mounted) return;
+        setConnectionStatus("error");
+        setStatusMessage("Backend unreachable — start FastAPI on port 8000");
+      }
+    }
+
+    poll();
+    const interval = setInterval(poll, 2000);
+    return () => {
+      mounted = false;
+      clearInterval(interval);
+    };
   }, []);
 
   const navItems = [
@@ -123,10 +133,34 @@ export default function App() {
   ];
 
   const resolveAlert = (id) => {
+    resolvedAlertIdsRef.current.add(id);
     setAlerts((prev) =>
       prev.map((a) => (a.id === id ? { ...a, resolved: true } : a))
     );
   };
+
+  const fuelChartData = buildFuelChartData(liveTrucks);
+  const activeAlerts = alerts.filter((a) => !a.resolved);
+  const hasTrucks = liveTrucks.length > 0;
+
+  const connectionBadge = {
+    live: { bg: "bg-green-500/10 border-green-500/20", dot: "bg-green-400", text: "text-green-400", label: "Live" },
+    waiting: { bg: "bg-yellow-500/10 border-yellow-500/20", dot: "bg-yellow-400", text: "text-yellow-400", label: "Waiting" },
+    error: { bg: "bg-red-500/10 border-red-500/20", dot: "bg-red-400", text: "text-red-400", label: "Offline" },
+    loading: { bg: "bg-gray-500/10 border-gray-500/20", dot: "bg-gray-400", text: "text-gray-400", label: "Loading" },
+  }[connectionStatus];
+
+  function renderEmptyState(message) {
+    return (
+      <div className="flex flex-col items-center justify-center py-24 text-center">
+        <Truck className="w-12 h-12 text-gray-500 mb-4" />
+        <p className="text-gray-300 text-lg font-medium">{message}</p>
+        <p className="text-gray-500 text-sm mt-2 max-w-md">
+          Start Kafka, run the producer, then ensure FastAPI is listening on port 8000.
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[#07111F] text-white flex">
@@ -148,9 +182,9 @@ export default function App() {
             >
               <item.icon className="w-4 h-4" />
               {item.label}
-              {item.id === "alerts" && (
+              {item.id === "alerts" && activeAlerts.length > 0 && (
                 <span className="ml-auto bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
-                  {alerts.filter((a) => !a.resolved).length}
+                  {activeAlerts.length}
                 </span>
               )}
             </button>
@@ -180,9 +214,9 @@ export default function App() {
             <p className="text-gray-400 mt-1 text-sm">
               {activeTab === "dashboard" && "Real-time monitoring dashboard"}
               {activeTab === "fleet" && `${liveTrucks.length} trucks tracked live`}
-              {activeTab === "map" && "Live truck positions across active routes"}
-              {activeTab === "alerts" && `${alerts.filter((a) => !a.resolved).length} active alerts`}
-              {activeTab === "analytics" && "Weekly performance insights"}
+              {activeTab === "map" && "Live truck positions from GPS telemetry"}
+              {activeTab === "alerts" && `${activeAlerts.length} active alerts`}
+              {activeTab === "analytics" && "Live session performance (runtime data)"}
             </p>
           </div>
           <div className="flex items-center gap-4">
@@ -191,57 +225,79 @@ export default function App() {
               <span className="text-gray-400 text-sm">Search trucks</span>
             </div>
             <Bell className="w-6 h-6 text-gray-300 cursor-pointer hover:text-white transition-colors" />
-            <div className="flex items-center gap-2 bg-green-500/10 border border-green-500/20 px-4 py-2 rounded-full">
-              <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />
-              <span className="text-green-400 text-sm">Live</span>
+            <div className={`flex items-center gap-2 ${connectionBadge.bg} border px-4 py-2 rounded-full`}>
+              <div className={`w-2 h-2 ${connectionBadge.dot} rounded-full ${connectionStatus === "live" ? "animate-pulse" : ""}`} />
+              <span className={`${connectionBadge.text} text-sm`}>{connectionBadge.label}</span>
             </div>
           </div>
         </div>
 
+        {connectionStatus === "error" && (
+          <div className="mb-6 bg-red-500/10 border border-red-500/30 rounded-xl px-4 py-3 text-red-300 text-sm">
+            {statusMessage}
+          </div>
+        )}
+
+        {connectionStatus === "waiting" && !hasTrucks && activeTab !== "analytics" && (
+          renderEmptyState("Waiting for telemetry")
+        )}
+
         {/* DASHBOARD */}
-        {activeTab === "dashboard" && (
+        {activeTab === "dashboard" && hasTrucks && (
           <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
             <div className="grid grid-cols-4 gap-6 mb-8">
-              {stats.map((stat, index) => (
-                <motion.div
-                  key={stat.title}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: index * 0.1 }}
-                  whileHover={{ y: -4 }}
-                  className="bg-[#0F172A] border border-white/10 rounded-2xl p-6"
-                >
-                  <div className="flex justify-between items-center">
-                    <p className="text-gray-400 text-sm">{stat.title}</p>
-                    <stat.icon className={`w-5 h-5 ${stat.color}`} />
-                  </div>
-                  <h3 className="text-4xl font-bold mt-4">{stat.value}</h3>
-                </motion.div>
-              ))}
+              {dashboardStats.map((stat, index) => {
+                const Icon = STAT_ICONS[stat.iconKey];
+                return (
+                  <motion.div
+                    key={stat.title}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: index * 0.1 }}
+                    whileHover={{ y: -4 }}
+                    className="bg-[#0F172A] border border-white/10 rounded-2xl p-6"
+                  >
+                    <div className="flex justify-between items-center">
+                      <p className="text-gray-400 text-sm">{stat.title}</p>
+                      <Icon className={`w-5 h-5 ${stat.color}`} />
+                    </div>
+                    <h3 className="text-4xl font-bold mt-4">{stat.value}</h3>
+                  </motion.div>
+                );
+              })}
             </div>
             <div className="grid grid-cols-3 gap-6 mb-8">
               <div className="col-span-2 bg-[#0F172A] border border-white/10 rounded-2xl p-6">
-                <h3 className="text-lg font-semibold mb-4">Speed trend</h3>
+                <h3 className="text-lg font-semibold mb-1">Speed trend</h3>
+                <p className="text-gray-500 text-xs mb-4">Runtime session average (updates every 2s)</p>
                 <div className="h-56">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={speedData}>
-                      <XAxis dataKey="time" stroke="#64748B" tick={{ fontSize: 12 }} />
-                      <Tooltip contentStyle={{ background: "#0F172A", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8 }} />
-                      <Line type="monotone" dataKey="speed" stroke="#22D3EE" strokeWidth={3} dot={{ fill: "#22D3EE", r: 4 }} />
-                    </LineChart>
-                  </ResponsiveContainer>
+                  {speedHistory.length > 0 ? (
+                    <ResponsiveContainer width="100%" height="100%">
+                      <LineChart data={speedHistory}>
+                        <XAxis dataKey="time" stroke="#64748B" tick={{ fontSize: 10 }} />
+                        <Tooltip contentStyle={{ background: "#0F172A", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8 }} />
+                        <Line type="monotone" dataKey="speed" stroke="#22D3EE" strokeWidth={3} dot={{ fill: "#22D3EE", r: 4 }} />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  ) : (
+                    <p className="text-gray-500 text-sm flex items-center justify-center h-full">Collecting speed data…</p>
+                  )}
                 </div>
               </div>
               <div className="bg-[#0F172A] border border-white/10 rounded-2xl p-6">
                 <h3 className="text-lg font-semibold mb-4">Fuel levels</h3>
                 <div className="h-56">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={fuelData}>
-                      <XAxis dataKey="truck" stroke="#64748B" tick={{ fontSize: 12 }} />
-                      <Tooltip contentStyle={{ background: "#0F172A", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8 }} />
-                      <Bar dataKey="fuel" fill="#22D3EE" radius={[6, 6, 0, 0]} />
-                    </BarChart>
-                  </ResponsiveContainer>
+                  {fuelChartData.length > 0 ? (
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={fuelChartData}>
+                        <XAxis dataKey="truck" stroke="#64748B" tick={{ fontSize: 12 }} />
+                        <Tooltip contentStyle={{ background: "#0F172A", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8 }} />
+                        <Bar dataKey="fuel" fill="#22D3EE" radius={[6, 6, 0, 0]} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  ) : (
+                    <p className="text-gray-500 text-sm flex items-center justify-center h-full">No fuel data yet</p>
+                  )}
                 </div>
               </div>
             </div>
@@ -249,7 +305,7 @@ export default function App() {
               <div className="col-span-2 bg-[#0F172A] border border-white/10 rounded-2xl p-6">
                 <div className="flex justify-between items-center mb-4">
                   <h3 className="text-lg font-semibold">Live Fleet Status</h3>
-                  <span className="text-cyan-400 text-sm">42 trucks online</span>
+                  <span className="text-cyan-400 text-sm">{liveTrucks.length} trucks online</span>
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   {liveTrucks.slice(0, 4).map((truck) => (
@@ -265,6 +321,7 @@ export default function App() {
                           truck.status === "Overspeed" ? "bg-red-500/20 text-red-400" :
                           truck.status === "Low Fuel" ? "bg-yellow-500/20 text-yellow-400" :
                           truck.status === "High Temp" ? "bg-orange-500/20 text-orange-400" :
+                          truck.status === "Stopped" ? "bg-gray-500/20 text-gray-400" :
                           "bg-green-500/20 text-green-400"
                         }`}>{truck.status}</span>
                       </div>
@@ -289,7 +346,7 @@ export default function App() {
               <div className="bg-[#0F172A] border border-white/10 rounded-2xl p-6">
                 <h3 className="text-lg font-semibold mb-4">Alerts center</h3>
                 <div className="space-y-3">
-                  {alerts.filter((a) => !a.resolved).slice(0, 3).map((alert, index) => (
+                  {activeAlerts.slice(0, 3).map((alert, index) => (
                     <motion.div
                       key={alert.id}
                       initial={{ opacity: 0, x: 20 }}
@@ -304,6 +361,9 @@ export default function App() {
                       <p className="text-gray-400 text-xs mt-1">{alert.time}</p>
                     </motion.div>
                   ))}
+                  {activeAlerts.length === 0 && (
+                    <p className="text-gray-500 text-sm">No active alerts</p>
+                  )}
                 </div>
                 <button onClick={() => setActiveTab("alerts")} className="mt-4 w-full text-center text-cyan-400 text-sm hover:text-cyan-300 transition-colors">
                   View all alerts →
@@ -314,7 +374,7 @@ export default function App() {
         )}
 
         {/* LIVE FLEET */}
-        {activeTab === "fleet" && (
+        {activeTab === "fleet" && hasTrucks && (
           <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
             <div className="grid grid-cols-3 gap-6">
               {liveTrucks.map((truck) => (
@@ -326,13 +386,14 @@ export default function App() {
                 >
                   <div className="flex justify-between items-center mb-4">
                     <div className="flex items-center gap-2">
-                      <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />
+                      <div className={`w-2 h-2 rounded-full animate-pulse ${truck.backendStatus === "STOPPED" ? "bg-gray-400" : "bg-green-400"}`} />
                       <h4 className="font-semibold">{truck.id}</h4>
                     </div>
                     <span className={`px-2 py-1 rounded-full text-xs font-medium ${
                       truck.status === "Overspeed" ? "bg-red-500/20 text-red-400" :
                       truck.status === "Low Fuel" ? "bg-yellow-500/20 text-yellow-400" :
                       truck.status === "High Temp" ? "bg-orange-500/20 text-orange-400" :
+                      truck.status === "Stopped" ? "bg-gray-500/20 text-gray-400" :
                       "bg-green-500/20 text-green-400"
                     }`}>{truck.status}</span>
                   </div>
@@ -352,7 +413,7 @@ export default function App() {
                     </div>
                     <div className="bg-[#111827] rounded-xl p-3 text-center">
                       <p className="text-gray-400 text-xs mb-1">Temp</p>
-                      <p className={`font-bold ${parseInt(truck.temp) > 42 ? "text-orange-400" : "text-white"}`}>{truck.temp}</p>
+                      <p className={`font-bold ${truck.temperature > 42 ? "text-orange-400" : "text-white"}`}>{truck.temp}</p>
                       <p className="text-gray-500 text-xs">engine</p>
                     </div>
                   </div>
@@ -370,7 +431,7 @@ export default function App() {
         )}
 
         {/* LIVE MAP */}
-        {activeTab === "map" && (
+        {activeTab === "map" && hasTrucks && (
           <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
             <div className="grid grid-cols-3 gap-6">
               <div className="col-span-2 bg-[#0F172A] border border-white/10 rounded-2xl p-6 relative">
@@ -378,7 +439,7 @@ export default function App() {
                   <h3 className="text-lg font-semibold flex items-center gap-2">
                     <Navigation className="w-4 h-4 text-cyan-400" /> Fleet positions
                   </h3>
-                  <span className="text-gray-400 text-xs">Updated every 2s</span>
+                  <span className="text-gray-400 text-xs">Updated every 2s · GPS coordinates</span>
                 </div>
                 <div className="relative w-full" style={{ aspectRatio: "500 / 620" }}>
                   <svg viewBox="0 0 500 620" className="w-full h-full">
@@ -394,7 +455,6 @@ export default function App() {
 
                     <rect x="0" y="0" width="500" height="620" fill="url(#gridPattern)" />
 
-                    {/* Stylized India silhouette */}
                     <path
                       d="M 205 32
                          C 235 26, 268 34, 282 58
@@ -427,24 +487,6 @@ export default function App() {
                       strokeWidth="1.5"
                     />
 
-                    {/* Routes */}
-                    {liveTrucks.map((truck) => {
-                      const { fromCoord, toCoord } = parseRoute(truck.route);
-                      if (!fromCoord || !toCoord) return null;
-                      return (
-                        <line
-                          key={`route-${truck.id}`}
-                          x1={fromCoord.x} y1={fromCoord.y}
-                          x2={toCoord.x} y2={toCoord.y}
-                          stroke="#22D3EE"
-                          strokeOpacity={hoveredTruckId === truck.id ? 0.55 : 0.18}
-                          strokeWidth={hoveredTruckId === truck.id ? 2 : 1.2}
-                          strokeDasharray="5 5"
-                        />
-                      );
-                    })}
-
-                    {/* City markers */}
                     {Object.entries(cityCoords).map(([name, coord]) => (
                       <g key={name}>
                         <circle cx={coord.x} cy={coord.y} r="3" fill="#64748B" />
@@ -452,13 +494,8 @@ export default function App() {
                       </g>
                     ))}
 
-                    {/* Trucks */}
                     {liveTrucks.map((truck) => {
-                      const { fromCoord, toCoord } = parseRoute(truck.route);
-                      if (!fromCoord || !toCoord) return null;
-                      const t = truck.progress / 100;
-                      const x = fromCoord.x + (toCoord.x - fromCoord.x) * t;
-                      const y = fromCoord.y + (toCoord.y - fromCoord.y) * t;
+                      const { x, y } = truck.mapPos;
                       const color = statusColor(truck.status);
                       const isHovered = hoveredTruckId === truck.id;
                       return (
@@ -477,10 +514,11 @@ export default function App() {
                           <circle r="5" fill={color} stroke="#07111F" strokeWidth="1.5" />
                           {isHovered && (
                             <g transform="translate(12, -10)">
-                              <rect x="0" y="-14" width="128" height="46" rx="8" fill="#0B1627" stroke="#22D3EE" strokeOpacity="0.4" />
+                              <rect x="0" y="-14" width="148" height="58" rx="8" fill="#0B1627" stroke="#22D3EE" strokeOpacity="0.4" />
                               <text x="8" y="0" fontSize="11" fill="#22D3EE" fontWeight="600">{truck.id}</text>
                               <text x="8" y="14" fontSize="9" fill="#94A3B8">{truck.status} · {truck.speed} km/h</text>
-                              <text x="8" y="26" fontSize="9" fill="#94A3B8">{Math.round(truck.progress)}% of route</text>
+                              <text x="8" y="26" fontSize="9" fill="#94A3B8">{truck.latitude?.toFixed(4)}, {truck.longitude?.toFixed(4)}</text>
+                              <text x="8" y="38" fontSize="9" fill="#94A3B8">{truck.route}</text>
                             </g>
                           )}
                         </g>
@@ -510,15 +548,12 @@ export default function App() {
                           style={{ backgroundColor: statusColor(truck.status) }}
                         />
                       </div>
-                      <p className="text-gray-400 text-xs mb-3">{truck.route}</p>
-                      <div className="w-full bg-gray-700 rounded-full h-1.5">
-                        <div
-                          className="h-1.5 rounded-full bg-cyan-400 transition-all duration-700"
-                          style={{ width: `${truck.progress}%` }}
-                        />
-                      </div>
-                      <div className="flex justify-between text-xs text-gray-500 mt-1">
-                        <span>{Math.round(truck.progress)}% complete</span>
+                      <p className="text-gray-400 text-xs mb-2">{truck.route}</p>
+                      <p className="text-gray-500 text-xs mb-2">
+                        {truck.latitude?.toFixed(4)}, {truck.longitude?.toFixed(4)}
+                      </p>
+                      <div className="flex justify-between text-xs text-gray-500">
+                        <span>{truck.status}</span>
                         <span>{truck.speed} km/h</span>
                       </div>
                     </div>
@@ -532,160 +567,185 @@ export default function App() {
         {/* ALERTS */}
         {activeTab === "alerts" && (
           <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
-            <div className="grid grid-cols-3 gap-6 mb-8">
-              {[
-                { label: "Critical", count: alerts.filter((a) => a.level === "Critical" && !a.resolved).length, color: "text-red-400", bg: "bg-red-500/10 border-red-500/20" },
-                { label: "Warnings", count: alerts.filter((a) => a.level === "Warning" && !a.resolved).length, color: "text-yellow-400", bg: "bg-yellow-500/10 border-yellow-500/20" },
-                { label: "Resolved today", count: alerts.filter((a) => a.resolved).length, color: "text-green-400", bg: "bg-green-500/10 border-green-500/20" },
-              ].map((s) => (
-                <div key={s.label} className={`${s.bg} border rounded-2xl p-6`}>
-                  <p className="text-gray-400 text-sm">{s.label}</p>
-                  <h3 className={`text-5xl font-bold mt-2 ${s.color}`}>{s.count}</h3>
-                </div>
-              ))}
-            </div>
-            <div className="bg-[#0F172A] border border-white/10 rounded-2xl p-6">
-              <h3 className="text-xl font-semibold mb-6">All Alerts</h3>
-              <div className="space-y-4">
-                {alerts.map((alert, index) => (
-                  <motion.div
-                    key={alert.id}
-                    initial={{ opacity: 0, x: 20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: index * 0.06 }}
-                    className={`bg-[#111827] rounded-xl p-5 border transition-all ${
-                      alert.resolved ? "border-white/5 opacity-50" :
-                      alert.level === "Critical" ? "border-red-500/30" :
-                      alert.level === "Warning" ? "border-yellow-500/30" : "border-blue-500/20"
-                    }`}
-                  >
-                    <div className="flex items-start justify-between">
-                      <div className="flex items-center gap-3">
-                        <AlertTriangle className={`w-5 h-5 flex-shrink-0 ${
-                          alert.resolved ? "text-gray-500" :
-                          alert.level === "Critical" ? "text-red-400" :
-                          alert.level === "Warning" ? "text-yellow-400" : "text-blue-400"
-                        }`} />
-                        <div>
-                          <div className="flex items-center gap-3 mb-1">
-                            <p className="font-semibold">{alert.truck}</p>
-                            <span className={`text-xs px-2 py-0.5 rounded-full ${
-                              alert.resolved ? "bg-gray-500/20 text-gray-400" :
-                              alert.level === "Critical" ? "bg-red-500/20 text-red-400" :
-                              alert.level === "Warning" ? "bg-yellow-500/20 text-yellow-400" :
-                              "bg-blue-500/20 text-blue-400"
-                            }`}>{alert.resolved ? "Resolved" : alert.level}</span>
-                          </div>
-                          <p className="text-gray-300 text-sm">{alert.type}</p>
-                          <p className="text-gray-400 text-xs mt-1">{alert.detail}</p>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-4 ml-4 flex-shrink-0">
-                        <div className="flex items-center gap-1 text-gray-400 text-xs">
-                          <Clock className="w-3 h-3" />{alert.time}
-                        </div>
-                        {!alert.resolved && (
-                          <button
-                            onClick={() => resolveAlert(alert.id)}
-                            className="flex items-center gap-1 bg-green-500/10 border border-green-500/20 text-green-400 hover:bg-green-500/20 text-xs px-3 py-1.5 rounded-lg transition-all"
-                          >
-                            <CheckCircle className="w-3 h-3" />Resolve
-                          </button>
-                        )}
-                      </div>
+            {!hasTrucks && alerts.length === 0 ? (
+              renderEmptyState("No alerts — waiting for telemetry")
+            ) : (
+              <>
+                <div className="grid grid-cols-3 gap-6 mb-8">
+                  {[
+                    { label: "Critical", count: alerts.filter((a) => a.level === "Critical" && !a.resolved).length, color: "text-red-400", bg: "bg-red-500/10 border-red-500/20" },
+                    { label: "Warnings", count: alerts.filter((a) => a.level === "Warning" && !a.resolved).length, color: "text-yellow-400", bg: "bg-yellow-500/10 border-yellow-500/20" },
+                    { label: "Resolved", count: alerts.filter((a) => a.resolved).length, color: "text-green-400", bg: "bg-green-500/10 border-green-500/20" },
+                  ].map((s) => (
+                    <div key={s.label} className={`${s.bg} border rounded-2xl p-6`}>
+                      <p className="text-gray-400 text-sm">{s.label}</p>
+                      <h3 className={`text-5xl font-bold mt-2 ${s.color}`}>{s.count}</h3>
                     </div>
-                  </motion.div>
-                ))}
-              </div>
-            </div>
+                  ))}
+                </div>
+                <div className="bg-[#0F172A] border border-white/10 rounded-2xl p-6">
+                  <h3 className="text-xl font-semibold mb-6">All Alerts</h3>
+                  {alerts.length === 0 ? (
+                    <p className="text-gray-500 text-sm">No alerts from the fleet</p>
+                  ) : (
+                    <div className="space-y-4">
+                      {alerts.map((alert, index) => (
+                        <motion.div
+                          key={alert.id}
+                          initial={{ opacity: 0, x: 20 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          transition={{ delay: index * 0.06 }}
+                          className={`bg-[#111827] rounded-xl p-5 border transition-all ${
+                            alert.resolved ? "border-white/5 opacity-50" :
+                            alert.level === "Critical" ? "border-red-500/30" :
+                            alert.level === "Warning" ? "border-yellow-500/30" : "border-blue-500/20"
+                          }`}
+                        >
+                          <div className="flex items-start justify-between">
+                            <div className="flex items-center gap-3">
+                              <AlertTriangle className={`w-5 h-5 flex-shrink-0 ${
+                                alert.resolved ? "text-gray-500" :
+                                alert.level === "Critical" ? "text-red-400" :
+                                alert.level === "Warning" ? "text-yellow-400" : "text-blue-400"
+                              }`} />
+                              <div>
+                                <div className="flex items-center gap-3 mb-1">
+                                  <p className="font-semibold">{alert.truck}</p>
+                                  <span className={`text-xs px-2 py-0.5 rounded-full ${
+                                    alert.resolved ? "bg-gray-500/20 text-gray-400" :
+                                    alert.level === "Critical" ? "bg-red-500/20 text-red-400" :
+                                    alert.level === "Warning" ? "bg-yellow-500/20 text-yellow-400" :
+                                    "bg-blue-500/20 text-blue-400"
+                                  }`}>{alert.resolved ? "Resolved" : alert.level}</span>
+                                </div>
+                                <p className="text-gray-300 text-sm">{alert.type}</p>
+                                <p className="text-gray-400 text-xs mt-1">{alert.detail}</p>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-4 ml-4 flex-shrink-0">
+                              <div className="flex items-center gap-1 text-gray-400 text-xs">
+                                <Clock className="w-3 h-3" />{alert.time}
+                              </div>
+                              {!alert.resolved && (
+                                <button
+                                  onClick={() => resolveAlert(alert.id)}
+                                  className="flex items-center gap-1 bg-green-500/10 border border-green-500/20 text-green-400 hover:bg-green-500/20 text-xs px-3 py-1.5 rounded-lg transition-all"
+                                >
+                                  <CheckCircle className="w-3 h-3" />Resolve
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        </motion.div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </>
+            )}
           </motion.div>
         )}
 
         {/* ANALYTICS */}
         {activeTab === "analytics" && (
           <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
-            <div className="grid grid-cols-4 gap-6 mb-8">
-              {[
-                { label: "Total Trips (Week)", value: "258", trend: "+12%", up: true },
-                { label: "Total Incidents", value: "11", trend: "-4%", up: false },
-                { label: "Avg Fuel Efficiency", value: "74%", trend: "+2%", up: true },
-                { label: "On-time Delivery", value: "91%", trend: "+5%", up: true },
-              ].map((kpi, i) => (
-                <motion.div
-                  key={i}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: i * 0.08 }}
-                  className="bg-[#0F172A] border border-white/10 rounded-2xl p-5"
-                >
-                  <p className="text-gray-400 text-sm">{kpi.label}</p>
-                  <h3 className="text-3xl font-bold mt-2">{kpi.value}</h3>
-                  <div className={`flex items-center gap-1 mt-2 text-sm ${kpi.up ? "text-green-400" : "text-red-400"}`}>
-                    {kpi.up ? <TrendingUp className="w-4 h-4" /> : <TrendingDown className="w-4 h-4" />}
-                    {kpi.trend} vs last week
-                  </div>
-                </motion.div>
-              ))}
-            </div>
-            <div className="grid grid-cols-2 gap-6 mb-6">
-              <div className="bg-[#0F172A] border border-white/10 rounded-2xl p-6">
-                <h3 className="text-lg font-semibold mb-4">Weekly Trips vs Incidents</h3>
-                <div className="h-56">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={weeklyData}>
-                      <XAxis dataKey="day" stroke="#64748B" tick={{ fontSize: 12 }} />
-                      <YAxis stroke="#64748B" tick={{ fontSize: 12 }} />
-                      <Tooltip contentStyle={{ background: "#0F172A", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8 }} />
-                      <Bar dataKey="trips" fill="#22D3EE" radius={[4, 4, 0, 0]} name="Trips" />
-                      <Bar dataKey="incidents" fill="#F87171" radius={[4, 4, 0, 0]} name="Incidents" />
-                    </BarChart>
-                  </ResponsiveContainer>
+            {!hasTrucks ? (
+              renderEmptyState("Waiting for telemetry to populate analytics")
+            ) : (
+              <>
+                <div className="grid grid-cols-4 gap-6 mb-8">
+                  {[
+                    { label: "Total Trucks", value: String(fleetStats?.total_trucks ?? 0), trend: "live", up: true },
+                    { label: "Active Alerts", value: String(Object.values(fleetStats?.alert_counts ?? {}).reduce((a, b) => a + b, 0)), trend: "current", up: false },
+                    { label: "Avg Fuel", value: `${Math.round(fleetStats?.avg_fuel ?? 0)}%`, trend: "live avg", up: true },
+                    { label: "Avg Speed", value: `${Math.round(fleetStats?.avg_speed ?? 0)} km/h`, trend: "live avg", up: true },
+                  ].map((kpi, i) => (
+                    <motion.div
+                      key={i}
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: i * 0.08 }}
+                      className="bg-[#0F172A] border border-white/10 rounded-2xl p-5"
+                    >
+                      <p className="text-gray-400 text-sm">{kpi.label}</p>
+                      <h3 className="text-3xl font-bold mt-2">{kpi.value}</h3>
+                      <div className={`flex items-center gap-1 mt-2 text-sm ${kpi.up ? "text-green-400" : "text-yellow-400"}`}>
+                        {kpi.up ? <TrendingUp className="w-4 h-4" /> : <TrendingDown className="w-4 h-4" />}
+                        {kpi.trend}
+                      </div>
+                    </motion.div>
+                  ))}
                 </div>
-              </div>
-              <div className="bg-[#0F172A] border border-white/10 rounded-2xl p-6">
-                <h3 className="text-lg font-semibold mb-4">Avg Fuel Efficiency (Week)</h3>
-                <div className="h-56">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <AreaChart data={weeklyData}>
-                      <XAxis dataKey="day" stroke="#64748B" tick={{ fontSize: 12 }} />
-                      <YAxis stroke="#64748B" tick={{ fontSize: 12 }} domain={[60, 85]} />
-                      <Tooltip contentStyle={{ background: "#0F172A", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8 }} />
-                      <defs>
-                        <linearGradient id="fuelGrad" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="#22D3EE" stopOpacity={0.3} />
-                          <stop offset="95%" stopColor="#22D3EE" stopOpacity={0} />
-                        </linearGradient>
-                      </defs>
-                      <Area type="monotone" dataKey="fuelAvg" stroke="#22D3EE" strokeWidth={2} fill="url(#fuelGrad)" name="Fuel %" />
-                    </AreaChart>
-                  </ResponsiveContainer>
-                </div>
-              </div>
-            </div>
-            <div className="bg-[#0F172A] border border-white/10 rounded-2xl p-6">
-              <div className="flex items-center gap-2 mb-6">
-                <Activity className="w-5 h-5 text-cyan-400" />
-                <h3 className="text-lg font-semibold">Route Efficiency Breakdown</h3>
-              </div>
-              <div className="space-y-4">
-                {efficiencyData.map((route) => (
-                  <div key={route.route} className="flex items-center gap-4">
-                    <span className="text-gray-400 text-sm w-36 flex-shrink-0">{route.route}</span>
-                    <div className="flex-1 bg-gray-700 rounded-full h-3">
-                      <motion.div
-                        initial={{ width: 0 }}
-                        animate={{ width: `${route.efficiency}%` }}
-                        transition={{ duration: 0.8, delay: 0.2 }}
-                        className={`h-3 rounded-full ${route.efficiency >= 80 ? "bg-green-400" : route.efficiency >= 60 ? "bg-cyan-400" : "bg-red-400"}`}
-                      />
+                <div className="grid grid-cols-2 gap-6 mb-6">
+                  <div className="bg-[#0F172A] border border-white/10 rounded-2xl p-6">
+                    <h3 className="text-lg font-semibold mb-1">Fleet avg speed (session)</h3>
+                    <p className="text-gray-500 text-xs mb-4">Runtime polling history — not stored on server</p>
+                    <div className="h-56">
+                      {speedHistory.length > 0 ? (
+                        <ResponsiveContainer width="100%" height="100%">
+                          <BarChart data={speedHistory}>
+                            <XAxis dataKey="time" stroke="#64748B" tick={{ fontSize: 9 }} />
+                            <YAxis stroke="#64748B" tick={{ fontSize: 12 }} />
+                            <Tooltip contentStyle={{ background: "#0F172A", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8 }} />
+                            <Bar dataKey="speed" fill="#22D3EE" radius={[4, 4, 0, 0]} name="Avg speed" />
+                          </BarChart>
+                        </ResponsiveContainer>
+                      ) : (
+                        <p className="text-gray-500 text-sm flex items-center justify-center h-full">Collecting data…</p>
+                      )}
                     </div>
-                    <span className={`text-sm font-semibold w-10 text-right ${route.efficiency >= 80 ? "text-green-400" : route.efficiency >= 60 ? "text-cyan-400" : "text-red-400"}`}>
-                      {route.efficiency}%
-                    </span>
                   </div>
-                ))}
-              </div>
-            </div>
+                  <div className="bg-[#0F172A] border border-white/10 rounded-2xl p-6">
+                    <h3 className="text-lg font-semibold mb-1">Fleet avg fuel (session)</h3>
+                    <p className="text-gray-500 text-xs mb-4">Runtime polling history — not stored on server</p>
+                    <div className="h-56">
+                      {fuelHistory.length > 0 ? (
+                        <ResponsiveContainer width="100%" height="100%">
+                          <AreaChart data={fuelHistory}>
+                            <XAxis dataKey="time" stroke="#64748B" tick={{ fontSize: 9 }} />
+                            <YAxis stroke="#64748B" tick={{ fontSize: 12 }} domain={[0, 100]} />
+                            <Tooltip contentStyle={{ background: "#0F172A", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8 }} />
+                            <defs>
+                              <linearGradient id="fuelGrad" x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="5%" stopColor="#22D3EE" stopOpacity={0.3} />
+                                <stop offset="95%" stopColor="#22D3EE" stopOpacity={0} />
+                              </linearGradient>
+                            </defs>
+                            <Area type="monotone" dataKey="fuelAvg" stroke="#22D3EE" strokeWidth={2} fill="url(#fuelGrad)" name="Fuel %" />
+                          </AreaChart>
+                        </ResponsiveContainer>
+                      ) : (
+                        <p className="text-gray-500 text-sm flex items-center justify-center h-full">Collecting data…</p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+                <div className="bg-[#0F172A] border border-white/10 rounded-2xl p-6">
+                  <div className="flex items-center gap-2 mb-6">
+                    <Activity className="w-5 h-5 text-cyan-400" />
+                    <h3 className="text-lg font-semibold">Route Fuel Breakdown (current snapshot)</h3>
+                  </div>
+                  <div className="space-y-4">
+                    {routeEfficiency.map((route) => (
+                      <div key={route.route} className="flex items-center gap-4">
+                        <span className="text-gray-400 text-sm w-36 flex-shrink-0">{route.route}</span>
+                        <div className="flex-1 bg-gray-700 rounded-full h-3">
+                          <motion.div
+                            initial={{ width: 0 }}
+                            animate={{ width: `${route.efficiency}%` }}
+                            transition={{ duration: 0.8, delay: 0.2 }}
+                            className={`h-3 rounded-full ${route.efficiency >= 80 ? "bg-green-400" : route.efficiency >= 60 ? "bg-cyan-400" : "bg-red-400"}`}
+                          />
+                        </div>
+                        <span className={`text-sm font-semibold w-10 text-right ${route.efficiency >= 80 ? "text-green-400" : route.efficiency >= 60 ? "text-cyan-400" : "text-red-400"}`}>
+                          {route.efficiency}%
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </>
+            )}
           </motion.div>
         )}
 
@@ -706,8 +766,10 @@ export default function App() {
                   <div>
                     <h2 className="text-3xl font-bold">{selectedTruck.id}</h2>
                     <div className="flex items-center gap-2 mt-1">
-                      <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />
-                      <span className="text-green-400 text-sm">Live tracking active</span>
+                      <div className={`w-2 h-2 rounded-full animate-pulse ${selectedTruck.backendStatus === "STOPPED" ? "bg-gray-400" : "bg-green-400"}`} />
+                      <span className="text-green-400 text-sm">
+                        {selectedTruck.backendStatus === "STOPPED" ? "Stopped" : "Live tracking active"}
+                      </span>
                     </div>
                   </div>
                   <button onClick={() => setSelectedTruck(null)} className="w-8 h-8 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 text-gray-400 hover:text-white transition-all">
@@ -727,7 +789,7 @@ export default function App() {
                   </div>
                   <div className="bg-[#111827] rounded-2xl p-5">
                     <p className="text-gray-400 text-sm">Engine Temperature</p>
-                    <h3 className={`text-3xl font-bold mt-2 ${parseInt(selectedTruck.temp) > 42 ? "text-orange-400" : "text-white"}`}>{selectedTruck.temp}</h3>
+                    <h3 className={`text-3xl font-bold mt-2 ${selectedTruck.temperature > 42 ? "text-orange-400" : "text-white"}`}>{selectedTruck.temp}</h3>
                   </div>
                   <div className="bg-[#111827] rounded-2xl p-5">
                     <p className="text-gray-400 text-sm">Driver</p>
@@ -735,22 +797,14 @@ export default function App() {
                   </div>
                 </div>
                 <div className="bg-[#111827] rounded-2xl p-5">
-                  <h4 className="text-lg font-semibold mb-3">Route information</h4>
-                  <div className="flex items-center gap-2 text-gray-300 mb-4">
+                  <h4 className="text-lg font-semibold mb-3">Route & location</h4>
+                  <div className="flex items-center gap-2 text-gray-300 mb-2">
                     <MapPin className="w-4 h-4 text-cyan-400" />{selectedTruck.route}
                   </div>
-                  <div>
-                    <div className="flex justify-between text-sm text-gray-400 mb-2">
-                      <span>Route progress</span>
-                      <span>{Math.round(selectedTruck.progress ?? 68)}% complete</span>
-                    </div>
-                    <div className="w-full bg-gray-700 rounded-full h-2.5">
-                      <div
-                        className="bg-cyan-400 h-2.5 rounded-full transition-all duration-700"
-                        style={{ width: `${selectedTruck.progress ?? 68}%` }}
-                      />
-                    </div>
-                  </div>
+                  <p className="text-gray-400 text-sm mb-2">
+                    GPS: {selectedTruck.latitude?.toFixed(6)}, {selectedTruck.longitude?.toFixed(6)}
+                  </p>
+                  <p className="text-gray-500 text-xs">Last update: {selectedTruck.timestamp || "—"}</p>
                 </div>
               </motion.div>
             </motion.div>
